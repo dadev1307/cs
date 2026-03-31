@@ -1,6 +1,6 @@
 import { bench } from 'vitest';
 
-const N = 1_00_000_000;
+const N = 1_000_000;
 
 bench(
   'Array + push (без прогрева)',
@@ -28,7 +28,7 @@ bench('Array + push', () => {
 bench(
   'Dynamic Uint8Array (без прогрева)',
   () => {
-    let capacity = 1024;
+    let capacity = 2;
     let buffer = new Uint8Array(capacity);
     let len = 0;
     for (let i = 0; i < N; i++) {
