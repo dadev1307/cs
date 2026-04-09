@@ -84,4 +84,16 @@ class LoopedArray<T> {
   toString() {
     return this.data.toString();
   }
+
+  get state() {
+    return {
+      capacity: this.capacity,
+      startIndex: this.startIndex,
+      endIndex: this.endIndex,
+      count: this.count,
+      isFull: this.isFull,
+      isEmpty: this.isEmpty,
+      data: this.data.slice(),
+    };
+  }
 }

@@ -313,11 +313,7 @@
 
         ctx.clearRect(0, 0, W, H);
 
-        const cap = arr.capacity;
-        const data = arr.data;
-        const si = arr.startIndex;
-        const ei = arr.endIndex;
-        const cnt = arr.count;
+        const { capacity: cap, data, startIndex: si, endIndex: ei, count: cnt, isFull, isEmpty } = arr.state;
 
         // status bar
         document.getElementById('statusInfo').textContent =
@@ -329,8 +325,8 @@
           si +
           '   endIndex: ' +
           ei +
-          (arr.isFull ? '   FULL' : '') +
-          (arr.isEmpty ? '   EMPTY' : '');
+          (isFull ? '   FULL' : '') +
+          (isEmpty ? '   EMPTY' : '');
 
         // ring backbone
         ctx.beginPath();

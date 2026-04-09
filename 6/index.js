@@ -68,19 +68,17 @@ class LoopedArray {
         return value;
     }
     toString() {
-        return this.data
-            .map((item, index) => {
-            if (index === this.endIndex && index === this.startIndex) {
-                return `<se>${item}</se>`;
-            }
-            if (index === this.startIndex) {
-                return `<s>${item}</s>`;
-            }
-            if (index === this.endIndex) {
-                return `<e>${item}</e>`;
-            }
-            return `${item}`;
-        })
-            .toString();
+        return this.data.toString();
+    }
+    get state() {
+        return {
+            capacity: this.capacity,
+            startIndex: this.startIndex,
+            endIndex: this.endIndex,
+            count: this.count,
+            isFull: this.isFull,
+            isEmpty: this.isEmpty,
+            data: this.data.slice(),
+        };
     }
 }
