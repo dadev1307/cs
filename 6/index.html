@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LoopedArray Demo</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: #1a1a2e;
+        color: #e0e0e0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+        margin-bottom: 20px;
+        color: #e94560;
+      }
+
+      .controls {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-bottom: 24px;
+      }
+
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #16213e;
+        padding: 10px 16px;
+        border-radius: 10px;
+      }
+
+      label {
+        font-size: 0.85rem;
+        color: #aaa;
+      }
+
+      input[type='number'],
+      input[type='text'] {
+        width: 70px;
+        padding: 6px 10px;
+        border: 1px solid #333;
+        border-radius: 6px;
+        background: #0f3460;
+        color: #fff;
+        font-size: 0.95rem;
+        text-align: center;
+      }
+
+      input[type='text'] {
+        width: 100px;
+      }
+
+      button {
+        padding: 8px 18px;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 0.1s,
+          filter 0.15s;
+      }
+
+      button:active {
+        transform: scale(0.95);
+      }
+
+      .btn-push {
+        background: #00b894;
+        color: #fff;
+      }
+      .btn-pop {
+        background: #e17055;
+        color: #fff;
+      }
+      .btn-unshift {
+        background: #0984e3;
+        color: #fff;
+      }
+      .btn-shift {
+        background: #fdcb6e;
+        color: #333;
+      }
+      .btn-reset {
+        background: #636e72;
+        color: #fff;
+      }
+
+      button:hover {
+        filter: brightness(1.15);
+      }
+
+      .canvas-wrap {
+        position: relative;
+        margin-bottom: 20px;
+      }
+
+      canvas {
+        display: block;
+      }
+
+      .log {
+        width: 100%;
+        max-width: 600px;
+        background: #16213e;
+        border-radius: 10px;
+        padding: 14px 18px;
+        font-family: 'Cascadia Code', 'Fira Code', monospace;
+        font-size: 0.82rem;
+        max-height: 180px;
+        overflow-y: auto;
+        line-height: 1.6;
+      }
+
+      .log .entry {
+        border-bottom: 1px solid #1a1a3e;
+        padding: 2px 0;
+      }
+      .log .ok {
+        color: #00b894;
+      }
+      .log .err {
+        color: #e17055;
+      }
+
+      .legend {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 16px;
+        font-size: 0.82rem;
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      .info {
+        font-size: 0.85rem;
+        color: #aaa;
+        margin-bottom: 10px;
+        font-family: 'Cascadia Code', 'Fira Code', monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>LoopedArray — Circular Buffer</h1>
+
+    <div class="controls">
+      <div class="control-group">
+        <label>Capacity:</label>
+        <input type="number" id="capacityInput" value="8" min="2" max="64" />
+        <button class="btn-reset" onclick="resetArray()">Reset</button>
+      </div>
+
+      <div class="control-group">
+        <label>Value:</label>
+        <input type="text" id="valueInput" placeholder="auto" />
+      </div>
+
+      <div class="control-group">
+        <button class="btn-push" onclick="doPush()">push</button>
+        <button class="btn-pop" onclick="doPop()">pop</button>
+        <button class="btn-unshift" onclick="doUnshift()">unshift</button>
+        <button class="btn-shift" onclick="doShift()">shift</button>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span
+        ><span class="dot" style="background: #e94560"></span> startIndex
+        (S)</span
+      >
+      <span
+        ><span class="dot" style="background: #0984e3"></span> endIndex
+        (E)</span
+      >
+      <span><span class="dot" style="background: #6c5ce7"></span> S = E</span>
+      <span><span class="dot" style="background: #00b894"></span> filled</span>
+      <span
+        ><span
+          class="dot"
+          style="background: #2d3436; border: 1px solid #555"
+        ></span>
+        empty</span
+      >
+    </div>
+
+    <div class="info" id="statusInfo"></div>
+
+    <div class="canvas-wrap">
+      <canvas id="canvas" width="520" height="520"></canvas>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script src="index.js"></script>
+    <script>
+      // ---- App ----
+      let arr;
+      let autoVal = 1;
+
+      function resetArray() {
+        const cap = Math.max(
+          2,
+          Math.min(
+            16,
+            parseInt(document.getElementById('capacityInput').value) || 8
+          )
+        );
+        document.getElementById('capacityInput').value = cap;
+        arr = new LoopedArray(cap);
+        autoVal = 1;
+        clearLog();
+        logMsg('Reset: capacity = ' + cap, 'ok');
+        draw();
+      }
+
+      function getVal() {
+        const input = document.getElementById('valueInput');
+        const v = input.value.trim();
+        if (v !== '') {
+          input.value = '';
+          return v;
+        }
+        return autoVal++;
+      }
+
+      function doPush() {
+        const v = getVal();
+        const ok = arr.push(v);
+        logMsg(
+          'push(' + v + ') \u2192 ' + (ok ? 'true' : 'false (full!)'),
+          ok ? 'ok' : 'err'
+        );
+        draw();
+      }
+
+      function doPop() {
+        const v = arr.pop();
+        logMsg(
+          'pop() \u2192 ' + (v !== undefined ? v : 'undefined (empty!)'),
+          v !== undefined ? 'ok' : 'err'
+        );
+        draw();
+      }
+
+      function doUnshift() {
+        const v = getVal();
+        const ok = arr.unshift(v);
+        logMsg(
+          'unshift(' + v + ') \u2192 ' + (ok ? 'true' : 'false (full!)'),
+          ok ? 'ok' : 'err'
+        );
+        draw();
+      }
+
+      function doShift() {
+        const v = arr.shift();
+        logMsg(
+          'shift() \u2192 ' + (v !== undefined ? v : 'undefined (empty!)'),
+          v !== undefined ? 'ok' : 'err'
+        );
+        draw();
+      }
+
+      // ---- Log ----
+      function logMsg(text, cls) {
+        const el = document.getElementById('log');
+        const d = document.createElement('div');
+        d.className = 'entry ' + cls;
+        d.textContent = text;
+        el.prepend(d);
+      }
+
+      function clearLog() {
+        document.getElementById('log').innerHTML = '';
+      }
+
+      // ---- Canvas drawing ----
+      function draw() {
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width,
+          H = canvas.height;
+        const cx = W / 2,
+          cy = H / 2;
+        const R = 180;
+        const cellR = 30;
+
+        ctx.clearRect(0, 0, W, H);
+
+        const cap = arr.capacity;
+        const data = arr.data;
+        const si = arr.startIndex;
+        const ei = arr.endIndex;
+        const cnt = arr.count;
+
+        // status bar
+        document.getElementById('statusInfo').textContent =
+          'count: ' +
+          cnt +
+          '/' +
+          cap +
+          '   startIndex: ' +
+          si +
+          '   endIndex: ' +
+          ei +
+          (arr.isFull ? '   FULL' : '') +
+          (arr.isEmpty ? '   EMPTY' : '');
+
+        // ring backbone
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.strokeStyle = '#2d3436';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        for (let i = 0; i < cap; i++) {
+          const angle = (Math.PI * 2 * i) / cap - Math.PI / 2;
+          const x = cx + R * Math.cos(angle);
+          const y = cy + R * Math.sin(angle);
+          const hasValue = data[i] !== undefined;
+          const isStart = i === si;
+          const isEnd = i === ei;
+
+          // pointer ring (outer glow)
+          if (isStart || isEnd) {
+            ctx.beginPath();
+            ctx.arc(x, y, cellR + 6, 0, Math.PI * 2);
+            if (isStart && isEnd) {
+              ctx.strokeStyle = '#6c5ce7';
+            } else if (isStart) {
+              ctx.strokeStyle = '#e94560';
+            } else {
+              ctx.strokeStyle = '#0984e3';
+            }
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
+
+          // cell background
+          ctx.beginPath();
+          ctx.arc(x, y, cellR, 0, Math.PI * 2);
+          if (hasValue) {
+            ctx.fillStyle = 'rgba(0, 184, 148, 0.2)';
+            ctx.strokeStyle = '#00b894';
+          } else {
+            ctx.fillStyle = 'rgba(45, 52, 54, 0.3)';
+            ctx.strokeStyle = '#555';
+          }
+          ctx.lineWidth = 2;
+          ctx.fill();
+          ctx.stroke();
+
+          // value
+          ctx.fillStyle = hasValue ? '#fff' : '#666';
+          ctx.font = 'bold 14px "Segoe UI", system-ui';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(hasValue ? String(data[i]) : '\u2014', x, y);
+
+          // index label (outside ring)
+          const labelR = R + cellR + 18;
+          const lx = cx + labelR * Math.cos(angle);
+          const ly = cy + labelR * Math.sin(angle);
+          ctx.fillStyle = '#666';
+          ctx.font = '11px "Segoe UI", system-ui';
+          ctx.fillText('[' + i + ']', lx, ly);
+
+          // pointer label (inside ring)
+          if (isStart || isEnd) {
+            const ptrR = R - cellR - 14;
+            const px = cx + ptrR * Math.cos(angle);
+            const py = cy + ptrR * Math.sin(angle);
+            ctx.font = 'bold 11px "Segoe UI", system-ui';
+
+            if (isStart && isEnd) {
+              ctx.fillStyle = '#6c5ce7';
+              ctx.fillText('S+E', px, py);
+            } else if (isStart) {
+              ctx.fillStyle = '#e94560';
+              ctx.fillText('S', px, py);
+            } else {
+              ctx.fillStyle = '#0984e3';
+              ctx.fillText('E', px, py);
+            }
+          }
+        }
+
+        // center label
+        ctx.fillStyle = '#444';
+        ctx.font = '13px "Segoe UI", system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(cnt + ' / ' + cap, cx, cy);
+      }
+
+      // ---- Init ----
+      resetArray();
+    </script>
+  </body>
+</html>
