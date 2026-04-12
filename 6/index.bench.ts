@@ -10,7 +10,9 @@ function createArray(size: number): number[] {
 function createHoleyArray(size: number): number[] {
   const arr = new Array(size);
 
+  arr[0] = 0;
   arr[Math.floor(size / 2)] = size;
+  arr[size - 1] = size * 2;
 
   return arr;
 }
