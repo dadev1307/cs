@@ -15,10 +15,10 @@ class LoopedArray {
         this.capacity = length;
         this.data = init;
     }
-    nextFrontPosition(position) {
+    stepForward(position) {
         return (position + 1) % this.capacity;
     }
-    nextBackPosition(position) {
+    stepBackward(position) {
         return (position - 1 + this.capacity) % this.capacity;
     }
     get isFull() {
@@ -32,7 +32,7 @@ class LoopedArray {
             return false;
         }
         this.data[this.endIndex] = value;
-        const nextPosition = this.nextFrontPosition(this.endIndex);
+        const nextPosition = this.stepForward(this.endIndex);
         this.endIndex = nextPosition;
         this.count++;
         return true;
@@ -41,7 +41,7 @@ class LoopedArray {
         if (this.isEmpty) {
             return undefined;
         }
-        this.endIndex = this.nextBackPosition(this.endIndex);
+        this.endIndex = this.stepBackward(this.endIndex);
         const value = this.data[this.endIndex];
         this.data[this.endIndex] = undefined;
         this.count--;
@@ -51,7 +51,7 @@ class LoopedArray {
         if (this.isFull) {
             return false;
         }
-        const nextPosition = this.nextBackPosition(this.startIndex);
+        const nextPosition = this.stepBackward(this.startIndex);
         this.data[nextPosition] = value;
         this.startIndex = nextPosition;
         this.count++;
@@ -63,7 +63,7 @@ class LoopedArray {
         }
         const value = this.data[this.startIndex];
         this.data[this.startIndex] = undefined;
-        this.startIndex = this.nextFrontPosition(this.startIndex);
+        this.startIndex = this.stepForward(this.startIndex);
         this.count--;
         return value;
     }

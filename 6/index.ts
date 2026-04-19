@@ -17,11 +17,11 @@ class LoopedArray<T> {
     this.data = init;
   }
 
-  private nextFrontPosition(position: number) {
+  private stepForward(position: number) {
     return (position + 1) % this.capacity;
   }
 
-  private nextBackPosition(position: number) {
+  private stepBackward(position: number) {
     return (position - 1 + this.capacity) % this.capacity;
   }
 
@@ -39,7 +39,7 @@ class LoopedArray<T> {
     }
 
     this.data[this.endIndex] = value;
-    const nextPosition = this.nextFrontPosition(this.endIndex);
+    const nextPosition = this.stepForward(this.endIndex);
     this.endIndex = nextPosition;
     this.count++;
     return true;
@@ -50,7 +50,7 @@ class LoopedArray<T> {
       return undefined;
     }
 
-    this.endIndex = this.nextBackPosition(this.endIndex);
+    this.endIndex = this.stepBackward(this.endIndex);
     const value = this.data[this.endIndex];
     this.data[this.endIndex] = undefined;
     this.count--;
@@ -62,7 +62,7 @@ class LoopedArray<T> {
       return false;
     }
 
-    const nextPosition = this.nextBackPosition(this.startIndex);
+    const nextPosition = this.stepBackward(this.startIndex);
     this.data[nextPosition] = value;
     this.startIndex = nextPosition;
     this.count++;
@@ -76,7 +76,7 @@ class LoopedArray<T> {
 
     const value = this.data[this.startIndex];
     this.data[this.startIndex] = undefined;
-    this.startIndex = this.nextFrontPosition(this.startIndex);
+    this.startIndex = this.stepForward(this.startIndex);
     this.count--;
     return value;
   }
