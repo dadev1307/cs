@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit",
     "bench": "vitest bench",
     "7:bench": "tsx 7/bench.ts",
-    "8:bench": "vitest bench 8/"
+    "8:bench": "vitest bench 8/",
+    "9:bench": "vitest bench 9/"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
@@ -28,6 +29,7 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
+    "canvas": "^3.2.3",
     "msgpackr": "^1.11.10",
     "typescript": "^6.0.2"
   }
