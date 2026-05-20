@@ -23,7 +23,8 @@
     "8:bench": "vitest bench 8/",
     "9:bench": "vitest bench 9/",
     "10": "tsx 10/examples.ts",
-    "10:bench": "vitest bench 10/"
+    "10:bench": "vitest bench 10/",
+    "11": "tsx 11/index.ts"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
