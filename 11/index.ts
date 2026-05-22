@@ -7,7 +7,7 @@ type TypedArrayConstructor<T extends ArrayBufferView> = {
 
 const align = (size: number) => (size + 7) & ~7;
 
-class Pointer {
+export class Pointer {
   private isFreed = false;
 
   constructor(
@@ -70,6 +70,12 @@ class Pointer {
 
     this.isFreed = true;
     this.memory.releaseHeapBlock(this.offset, this.allocSize);
+  }
+
+  [Symbol.dispose]() {
+    if (this.isHeap && !this.isFreed) {
+      this.free();
+    }
   }
 }
 
