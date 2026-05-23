@@ -38,20 +38,17 @@ class HashMap {
   }
 
   private getBucketIndex(key: any) {
-    const bucketIndex = (() => {
-      if (typeof key !== 'object' || key === null) {
-        return jenkinsHash(String(key)) % this.capacity;
-      }
+    if (typeof key !== 'object' || key === null) {
+      return jenkinsHash(String(key)) % this.capacity;
+    }
 
-      const objectId = key.__objectId;
+    const objectId = key.__objectId;
 
-      if (objectId === undefined) {
-        return undefined;
-      }
+    if (objectId === undefined) {
+      return undefined;
+    }
 
-      return jenkinsHash(String(objectId)) % this.capacity;
-    })();
-    return bucketIndex;
+    return jenkinsHash(String(objectId)) % this.capacity;
   }
 
   private rehash() {
