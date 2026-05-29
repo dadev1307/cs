@@ -1,4 +1,8 @@
-export function indexOf<T, U>(array: T[], value: U, cb?: (item: T) => U): number {
+export function indexOf<T, U>(
+  array: T[],
+  value: U,
+  cb?: (item: T) => U
+): number {
   let left = 0;
   let right = array.length - 1;
   let result = -1;
@@ -20,7 +24,11 @@ export function indexOf<T, U>(array: T[], value: U, cb?: (item: T) => U): number
   return result;
 }
 
-export function lastIndexOf<T, U>(array: T[], value: U, cb?: (item: T) => U): number {
+export function lastIndexOf<T, U>(
+  array: T[],
+  value: U,
+  cb?: (item: T) => U
+): number {
   let left = 0;
   let right = array.length - 1;
   let result = -1;
@@ -42,29 +50,25 @@ export function lastIndexOf<T, U>(array: T[], value: U, cb?: (item: T) => U): nu
   return result;
 }
 
-const isDirectRun = /(?:[/\\]|^)14[/\\]index\.ts$/.test(process.argv[1] ?? '');
+// Исходный массив должен быть отсортирован по возрасту
+const ages = [12, 42, 42, 42, 56];
 
-if (isDirectRun) {
-  // Исходный массив должен быть отсортирован по возрасту
-  const ages = [12, 42, 42, 42, 56];
+const users = [
+  { age: 12, name: 'Bob' },
+  { age: 42, name: 'Ben' },
+  { age: 42, name: 'Jack' },
+  { age: 42, name: 'Sam' },
+  { age: 56, name: 'Bill' },
+];
 
-  const users = [
-    { age: 12, name: 'Bob' },
-    { age: 42, name: 'Ben' },
-    { age: 42, name: 'Jack' },
-    { age: 42, name: 'Sam' },
-    { age: 56, name: 'Bill' },
-  ];
+// Поиск по массиву чисел
+console.log(indexOf(ages, 42)); // 1
+console.log(lastIndexOf(ages, 42)); // 3
 
-  // Поиск по массиву чисел
-  console.log(indexOf(ages, 42)); // 1
-  console.log(lastIndexOf(ages, 42)); // 3
+// Поиск по массиву объектов (по полю age)
+console.log(indexOf(users, 42, (item) => item.age)); // 1
+console.log(lastIndexOf(users, 42, (item) => item.age)); // 3
 
-  // Поиск по массиву объектов (по полю age)
-  console.log(indexOf(users, 42, (item) => item.age)); // 1
-  console.log(lastIndexOf(users, 42, (item) => item.age)); // 3
-
-  // Не найдено
-  console.log(indexOf(ages, 100)); // -1
-  console.log(lastIndexOf(ages, 100)); // -1
-}
+// Не найдено
+console.log(indexOf(ages, 100)); // -1
+console.log(lastIndexOf(ages, 100)); // -1
