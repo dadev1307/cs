@@ -25,11 +25,11 @@ class Matrix<T extends AnyTypedArray> {
     this.data = new ArrayClass(width * height);
   }
 
-  get(row: number, col: number): number {
+  get(row: number, col: number) {
     return this.data[row * this.width + col];
   }
 
-  set(row: number, col: number, value: number): void {
+  set(row: number, col: number, value: number) {
     this.data[row * this.width + col] = value;
   }
 }
@@ -47,33 +47,33 @@ class Graph<T extends AnyTypedArray> {
     this.matrix = matrix;
   }
 
-  hasEdge(u: number, v: number): boolean {
+  hasEdge(u: number, v: number) {
     return this.matrix.get(u, v) > 0 && this.matrix.get(v, u) > 0;
   }
 
-  hasArc(u: number, v: number): boolean {
+  hasArc(u: number, v: number) {
     return this.matrix.get(u, v) > 0;
   }
 
-  addEdge(u: number, v: number, weight: number = 1): void {
+  addEdge(u: number, v: number, weight: number = 1) {
     this.matrix.set(u, v, weight);
     this.matrix.set(v, u, weight);
   }
 
-  removeEdge(u: number, v: number): void {
+  removeEdge(u: number, v: number) {
     this.matrix.set(u, v, 0);
     this.matrix.set(v, u, 0);
   }
 
-  addArc(u: number, v: number, weight: number = 1): void {
+  addArc(u: number, v: number, weight: number = 1) {
     this.matrix.set(u, v, weight);
   }
 
-  removeArc(u: number, v: number): void {
+  removeArc(u: number, v: number) {
     this.matrix.set(u, v, 0);
   }
 
-  traverse(id: number, callback: (node: Node) => void): void {
+  traverse(id: number, callback: (node: Node) => void) {
     const visited = new Set<number>();
 
     const queue: Node[] = [{ id, weight: 0, depth: 0 }];
