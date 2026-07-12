@@ -16,22 +16,23 @@
   "main": "index.js",
   "scripts": {
     "7": "tsx 7/index.ts",
+    "10": "tsx 10/examples.ts",
+    "11": "tsx 11/index.ts",
+    "14": "tsx 14/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typecheck": "tsc --noEmit",
     "bench": "vitest bench",
     "7:bench": "tsx 7/bench.ts",
     "8:bench": "vitest bench 8/",
     "9:bench": "vitest bench 9/",
-    "10": "tsx 10/examples.ts",
     "10:bench": "vitest bench 10/",
-    "11": "tsx 11/index.ts",
-    "14": "tsx 14/index.ts",
-    "14:bench": "vitest bench 14/"
+    "14:bench": "vitest bench 14/",
+    "19:bench": "vitest bench 19/"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "tsx": "^4.21.0",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "canvas": "^3.2.3",
