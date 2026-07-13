@@ -37,6 +37,6 @@
   "dependencies": {
     "canvas": "^3.2.3",
     "msgpackr": "^1.11.10",
-    "typescript": "^6.0.2"
+    "typescript": "^7.0.2"
   }
 }
