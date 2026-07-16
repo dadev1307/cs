@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Iterator Pull — как вытягиваются данные</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: oklch(0.97 0.012 240);
+        --bg-deep: oklch(0.93 0.02 240);
+        --ink: oklch(0.28 0.03 250);
+        --muted: oklch(0.5 0.025 250);
+        --line: oklch(0.82 0.02 240);
+        --panel: oklch(0.995 0.005 240);
+        --pull: oklch(0.62 0.16 55);
+        --pull-soft: oklch(0.92 0.06 55);
+        --return: oklch(0.55 0.12 200);
+        --return-soft: oklch(0.92 0.04 200);
+        --reject: oklch(0.55 0.14 25);
+        --accept: oklch(0.55 0.13 150);
+        --active: oklch(0.45 0.1 250);
+        --shadow: 0 18px 40px oklch(0.4 0.04 250 / 0.1);
+        --radius: 14px;
+        --font-display: 'Newsreader', Georgia, serif;
+        --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: var(--font-mono);
+        background:
+          radial-gradient(
+            900px 500px at 10% -10%,
+            oklch(0.94 0.04 55 / 0.55),
+            transparent 60%
+          ),
+          radial-gradient(
+            700px 420px at 100% 0%,
+            oklch(0.93 0.035 200 / 0.45),
+            transparent 55%
+          ),
+          linear-gradient(165deg, var(--bg), var(--bg-deep));
+      }
+
+      main {
+        width: min(1080px, calc(100% - 2rem));
+        margin: 0 auto;
+        padding: 2.5rem 0 3.5rem;
+      }
+
+      header {
+        margin-bottom: 1.75rem;
+      }
+
+      header h1 {
+        margin: 0 0 0.4rem;
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 4vw, 2.75rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+      }
+
+      header p {
+        margin: 0;
+        max-width: 42rem;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.55;
+      }
+
+      .code-line {
+        display: inline-block;
+        margin-top: 0.9rem;
+        padding: 0.45rem 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        font-size: 0.85rem;
+        color: var(--active);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1.35fr 0.9fr;
+        gap: 1.25rem;
+      }
+
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+
+      .viz {
+        padding: 1.25rem 1.25rem 1.1rem;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.25rem;
+        margin-bottom: 1.1rem;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .swatch {
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 999px;
+      }
+
+      .swatch.pull {
+        background: var(--pull);
+      }
+
+      .swatch.ret {
+        background: var(--return);
+      }
+
+      .swatch.reject {
+        background: var(--reject);
+      }
+
+      .pipeline {
+        display: grid;
+        gap: 0;
+        position: relative;
+      }
+
+      .layer {
+        position: relative;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+        background: oklch(0.99 0.004 240);
+        transition:
+          border-color 0.25s ease,
+          background 0.25s ease,
+          transform 0.25s ease;
+      }
+
+      .layer.active-pull {
+        border-color: var(--pull);
+        background: var(--pull-soft);
+        transform: translateX(2px);
+      }
+
+      .layer.active-return {
+        border-color: var(--return);
+        background: var(--return-soft);
+        transform: translateX(-2px);
+      }
+
+      .layer-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-bottom: 0.45rem;
+      }
+
+      .layer-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .layer-meta {
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+
+      .layer-body {
+        min-height: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .chip {
+        min-width: 2rem;
+        height: 2rem;
+        padding: 0 0.55rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: oklch(0.97 0.01 240);
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition:
+          opacity 0.25s ease,
+          transform 0.25s ease,
+          background 0.25s ease,
+          border-color 0.25s ease,
+          color 0.25s ease;
+      }
+
+      .chip.consumed {
+        opacity: 0.28;
+      }
+
+      .chip.current {
+        border-color: var(--pull);
+        background: oklch(0.96 0.05 55);
+        transform: scale(1.08);
+      }
+
+      .chip.rejected {
+        border-color: var(--reject);
+        background: oklch(0.95 0.05 25);
+        color: var(--reject);
+        text-decoration: line-through;
+      }
+
+      .chip.accepted {
+        border-color: var(--accept);
+        background: oklch(0.95 0.05 150);
+        color: var(--accept);
+      }
+
+      .chip.result {
+        border-color: var(--return);
+        background: oklch(0.94 0.04 200);
+        color: var(--return);
+        font-weight: 600;
+      }
+
+      .connector {
+        height: 2.1rem;
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+
+      .connector::before {
+        content: '';
+        position: absolute;
+        top: 0.15rem;
+        bottom: 0.15rem;
+        width: 2px;
+        background: var(--line);
+      }
+
+      .pulse {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .pulse.down {
+        background: var(--pull);
+        box-shadow: 0 0 0 4px oklch(0.7 0.12 55 / 0.25);
+        animation: travel-down 0.55s ease forwards;
+      }
+
+      .pulse.up {
+        background: var(--return);
+        box-shadow: 0 0 0 4px oklch(0.7 0.1 200 / 0.25);
+        animation: travel-up 0.55s ease forwards;
+      }
+
+      @keyframes travel-down {
+        0% {
+          opacity: 0;
+          transform: translateY(-12px) scale(0.6);
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.15;
+          transform: translateY(12px) scale(1);
+        }
+      }
+
+      @keyframes travel-up {
+        0% {
+          opacity: 0;
+          transform: translateY(12px) scale(0.6);
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.15;
+          transform: translateY(-12px) scale(1);
+        }
+      }
+
+      .callout {
+        margin-top: 0.55rem;
+        min-height: 1.2rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      .callout strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 1.15rem;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: oklch(0.98 0.01 240);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 500;
+        padding: 0.55rem 0.9rem;
+        border-radius: 999px;
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          transform 0.15s ease;
+      }
+
+      button:hover:not(:disabled) {
+        border-color: var(--active);
+        background: oklch(0.96 0.02 240);
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+
+      button.primary {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: oklch(0.97 0.01 240);
+      }
+
+      button.primary:hover:not(:disabled) {
+        background: oklch(0.35 0.04 250);
+        border-color: oklch(0.35 0.04 250);
+      }
+
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .side {
+        display: grid;
+        gap: 1.25rem;
+        align-content: start;
+      }
+
+      .side .panel {
+        padding: 1rem 1.05rem;
+      }
+
+      .side h2 {
+        margin: 0 0 0.65rem;
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        font-weight: 600;
+      }
+
+      .status {
+        font-size: 0.84rem;
+        line-height: 1.5;
+        color: var(--muted);
+        min-height: 3.2rem;
+      }
+
+      .status b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .log {
+        height: 280px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        padding-right: 0.25rem;
+      }
+
+      .log-line {
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        background: oklch(0.97 0.01 240);
+        border-left: 3px solid var(--line);
+        white-space: pre-wrap;
+        animation: fade-in 0.25s ease;
+      }
+
+      .log-line.pull {
+        border-left-color: var(--pull);
+        background: var(--pull-soft);
+      }
+
+      .log-line.ret {
+        border-left-color: var(--return);
+        background: var(--return-soft);
+      }
+
+      .log-line.pred {
+        border-left-color: oklch(0.55 0.08 250);
+      }
+
+      .log-line.reject {
+        border-left-color: var(--reject);
+      }
+
+      .log-line.accept {
+        border-left-color: var(--accept);
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      .hint {
+        margin-top: 0.85rem;
+        font-size: 0.75rem;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Как итератор вытягивает данные</h1>
+        <p>
+          Цепочка ленивая и pull-based: никто не пушит значения заранее.
+          Потребитель зовёт <code>next()</code> у внешнего слоя, запрос идёт
+          вниз, ответ поднимается обратно.
+        </p>
+        <code class="code-line"
+          >[1…8].values().filter(x &gt; 5).take(2).next()</code
+        >
+      </header>
+
+      <div class="layout">
+        <section class="panel viz" aria-label="Визуализация цепочки">
+          <div class="legend">
+            <span><i class="swatch pull"></i> запрос вниз (.next)</span>
+            <span><i class="swatch ret"></i> значение вверх</span>
+            <span><i class="swatch reject"></i> filter отбросил</span>
+          </div>
+
+          <div class="pipeline" id="pipeline">
+            <div class="layer" data-layer="consumer" id="layer-consumer">
+              <div class="layer-head">
+                <div class="layer-name">consumer</div>
+                <div class="layer-meta">зовёт take.next()</div>
+              </div>
+              <div class="layer-body" id="consumer-slots"></div>
+              <div class="callout" id="callout-consumer"></div>
+            </div>
+
+            <div class="connector" data-from="consumer" data-to="take">
+              <span class="pulse" id="pulse-consumer-take"></span>
+            </div>
+
+            <div class="layer" data-layer="take" id="layer-take">
+              <div class="layer-head">
+                <div class="layer-name">take(2)</div>
+                <div class="layer-meta">
+                  взято: <span id="take-count">0</span>/2
+                </div>
+              </div>
+              <div class="layer-body" id="take-slots"></div>
+              <div class="callout" id="callout-take"></div>
+            </div>
+
+            <div class="connector" data-from="take" data-to="filter">
+              <span class="pulse" id="pulse-take-filter"></span>
+            </div>
+
+            <div class="layer" data-layer="filter" id="layer-filter">
+              <div class="layer-head">
+                <div class="layer-name">filter(x &gt; 5)</div>
+                <div class="layer-meta">пропускает только подходящие</div>
+              </div>
+              <div class="layer-body" id="filter-slots"></div>
+              <div class="callout" id="callout-filter"></div>
+            </div>
+
+            <div class="connector" data-from="filter" data-to="values">
+              <span class="pulse" id="pulse-filter-values"></span>
+            </div>
+
+            <div class="layer" data-layer="values" id="layer-values">
+              <div class="layer-head">
+                <div class="layer-name">values</div>
+                <div class="layer-meta">источник: массив</div>
+              </div>
+              <div class="layer-body" id="source-slots"></div>
+              <div class="callout" id="callout-values"></div>
+            </div>
+          </div>
+
+          <div class="controls">
+            <button class="primary" id="btn-step" type="button">Шаг</button>
+            <button id="btn-play" type="button">Авто</button>
+            <button id="btn-reset" type="button">Сброс</button>
+          </div>
+          <p class="hint">
+            Один клик «Шаг» = одно событие протокола (вызов next или возврат
+            значения). Чтобы получить один результат consumer, цепочка может
+            сделать несколько таких шагов.
+          </p>
+        </section>
+
+        <aside class="side">
+          <section class="panel">
+            <h2>Сейчас</h2>
+            <div class="status" id="status">
+              Нажми <b>Шаг</b>, чтобы consumer вызвал <b>take.next()</b>.
+            </div>
+          </section>
+          <section class="panel">
+            <h2>Лог</h2>
+            <div class="log" id="log" aria-live="polite"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <script>
+      const SOURCE = [1, 2, 3, 4, 5, 6, 7, 8];
+      const PREDICATE = (x) => x > 5;
+      const TAKE_LIMIT = 2;
+
+      const els = {
+        sourceSlots: document.getElementById('source-slots'),
+        filterSlots: document.getElementById('filter-slots'),
+        takeSlots: document.getElementById('take-slots'),
+        consumerSlots: document.getElementById('consumer-slots'),
+        takeCount: document.getElementById('take-count'),
+        status: document.getElementById('status'),
+        log: document.getElementById('log'),
+        btnStep: document.getElementById('btn-step'),
+        btnPlay: document.getElementById('btn-play'),
+        btnReset: document.getElementById('btn-reset'),
+        layers: {
+          consumer: document.getElementById('layer-consumer'),
+          take: document.getElementById('layer-take'),
+          filter: document.getElementById('layer-filter'),
+          values: document.getElementById('layer-values'),
+        },
+        callouts: {
+          consumer: document.getElementById('callout-consumer'),
+          take: document.getElementById('callout-take'),
+          filter: document.getElementById('callout-filter'),
+          values: document.getElementById('callout-values'),
+        },
+        pulses: {
+          'consumer>take': document.getElementById('pulse-consumer-take'),
+          'take>filter': document.getElementById('pulse-take-filter'),
+          'filter>values': document.getElementById('pulse-filter-values'),
+        },
+      };
+
+      let state;
+      let steps;
+      let stepIndex;
+      let playing = false;
+      let playTimer = null;
+
+      function buildSteps() {
+        const events = [];
+        let index = 0;
+        let taken = 0;
+        const yielded = [];
+
+        while (taken < TAKE_LIMIT && index < SOURCE.length) {
+          events.push({
+            type: 'pull',
+            by: 'consumer',
+            from: 'take',
+            message: '[consumer] take.next()',
+            status: 'Consumer тянет значение у <b>take</b>.',
+          });
+          events.push({
+            type: 'pull',
+            by: 'take',
+            from: 'filter',
+            message: '[take] filter.next()',
+            status: '<b>take</b> ещё не набрал лимит — тянет у <b>filter</b>.',
+          });
+
+          let accepted = null;
+          while (accepted === null && index < SOURCE.length) {
+            const value = SOURCE[index];
+            events.push({
+              type: 'pull',
+              by: 'filter',
+              from: 'values',
+              message: '[filter] values.next()',
+              status: `<b>filter</b> вызывает <b>values.next()</b>, чтобы получить следующий элемент.`,
+              highlightIndex: index,
+            });
+            events.push({
+              type: 'return',
+              by: 'filter',
+              from: 'values',
+              value,
+              message: `[filter] values ← { value: ${value}, done: false }`,
+              status: `<b>values</b> отдаёт <b>${value}</b> вверх в filter.`,
+              highlightIndex: index,
+            });
+
+            const ok = PREDICATE(value);
+            events.push({
+              type: 'predicate',
+              value,
+              ok,
+              index,
+              message: `  [filter] predicate ${value} → ${ok}`,
+              status: ok
+                ? `Предикат <b>${value} &gt; 5</b> истинен — элемент проходит дальше.`
+                : `Предикат <b>${value} &gt; 5</b> ложен — filter тянет снова.`,
+            });
+
+            if (ok) accepted = value;
+            index += 1;
+          }
+
+          if (accepted === null) {
+            events.push({
+              type: 'return',
+              by: 'take',
+              from: 'filter',
+              done: true,
+              message: '[take] filter ← { value: undefined, done: true }',
+              status: 'Источник исчерпан.',
+            });
+            break;
+          }
+
+          taken += 1;
+          yielded.push(accepted);
+
+          events.push({
+            type: 'return',
+            by: 'take',
+            from: 'filter',
+            value: accepted,
+            message: `[take] filter ← { value: ${accepted}, done: false }`,
+            status: `<b>filter</b> возвращает <b>${accepted}</b> в take.`,
+            takeCount: taken,
+            accepted,
+          });
+          events.push({
+            type: 'return',
+            by: 'consumer',
+            from: 'take',
+            value: accepted,
+            message: `[consumer] take ← { value: ${accepted}, done: false }`,
+            status: `<b>take</b> отдаёт <b>${accepted}</b> потребителю (${taken}/${TAKE_LIMIT}).`,
+            takeCount: taken,
+            accepted,
+            toConsumer: true,
+          });
+        }
+
+        events.push({
+          type: 'done',
+          message: `Готово: consumer получил [${yielded.join(', ')}]`,
+          status: `Два вызова <b>next()</b> у take дали <b>[${yielded.join(', ')}]</b>. Остальное так и не вытягивалось.`,
+          yielded,
+        });
+
+        return events;
+      }
+
+      function resetState() {
+        state = {
+          cursor: 0,
+          takeCount: 0,
+          rejected: new Set(),
+          accepted: new Set(),
+          consumed: new Set(),
+          consumerValues: [],
+          currentIndex: null,
+        };
+        steps = buildSteps();
+        stepIndex = 0;
+        stopPlay();
+        renderSource();
+        renderSlots();
+        clearLayers();
+        clearCallouts();
+        els.takeCount.textContent = '0';
+        els.log.innerHTML = '';
+        els.status.innerHTML =
+          'Нажми <b>Шаг</b>, чтобы consumer вызвал <b>take.next()</b>.';
+        els.btnStep.disabled = false;
+        els.btnPlay.disabled = false;
+        els.btnPlay.textContent = 'Авто';
+      }
+
+      function renderSource() {
+        els.sourceSlots.innerHTML = SOURCE.map((value, index) => {
+          const classes = ['chip'];
+          if (state.consumed.has(index)) classes.push('consumed');
+          if (state.rejected.has(index)) classes.push('rejected');
+          if (state.accepted.has(index)) classes.push('accepted');
+          if (state.currentIndex === index) classes.push('current');
+          return `<span class="${classes.join(' ')}" data-i="${index}">${value}</span>`;
+        }).join('');
+      }
+
+      function renderSlots() {
+        els.filterSlots.innerHTML =
+          state.currentIndex !== null
+            ? `<span class="chip current">${SOURCE[state.currentIndex]}</span>`
+            : `<span class="layer-meta">ждёт pull сверху</span>`;
+
+        els.takeSlots.innerHTML = state.consumerValues.length
+          ? state.consumerValues
+              .map((v) => `<span class="chip accepted">${v}</span>`)
+              .join('')
+          : `<span class="layer-meta">лимит ${TAKE_LIMIT}</span>`;
+
+        els.consumerSlots.innerHTML = state.consumerValues.length
+          ? state.consumerValues
+              .map((v) => `<span class="chip result">${v}</span>`)
+              .join('')
+          : `<span class="layer-meta">результатов пока нет</span>`;
+      }
+
+      function clearLayers() {
+        Object.values(els.layers).forEach((node) => {
+          node.classList.remove('active-pull', 'active-return');
+        });
+      }
+
+      function clearCallouts() {
+        Object.values(els.callouts).forEach((node) => {
+          node.innerHTML = '';
+        });
+      }
+
+      function setActive(layer, mode) {
+        clearLayers();
+        if (layer && els.layers[layer]) {
+          els.layers[layer].classList.add(
+            mode === 'return' ? 'active-return' : 'active-pull'
+          );
+        }
+      }
+
+      function pulse(edge, direction) {
+        const node = els.pulses[edge];
+        if (!node) return;
+        node.className = `pulse ${direction}`;
+        void node.offsetWidth;
+        node.className = `pulse ${direction}`;
+      }
+
+      function appendLog(message, kind) {
+        const line = document.createElement('div');
+        line.className = `log-line ${kind || ''}`;
+        line.textContent = message;
+        els.log.appendChild(line);
+        els.log.scrollTop = els.log.scrollHeight;
+      }
+
+      function applyEvent(event) {
+        clearCallouts();
+
+        if (event.type === 'pull') {
+          setActive(event.from, 'pull');
+          els.callouts[event.by].innerHTML =
+            `<strong>${event.by}</strong> → ${event.from}.next()`;
+          pulse(`${event.by}>${event.from}`, 'down');
+          appendLog(event.message, 'pull');
+        }
+
+        if (event.type === 'return') {
+          setActive(event.from, 'return');
+          const text =
+            event.done === true
+              ? `{ done: true }`
+              : `{ value: ${event.value}, done: false }`;
+          els.callouts[event.by].innerHTML =
+            `<strong>${event.from}</strong> ← ${text}`;
+          pulse(`${event.by}>${event.from}`, 'up');
+          appendLog(event.message, 'ret');
+
+          if (event.highlightIndex !== undefined) {
+            state.currentIndex = event.highlightIndex;
+            state.consumed.add(event.highlightIndex);
+          }
+
+          if (event.takeCount !== undefined) {
+            state.takeCount = event.takeCount;
+            els.takeCount.textContent = String(event.takeCount);
+          }
+
+          if (event.accepted !== undefined) {
+            const idx = SOURCE.indexOf(event.accepted);
+            if (idx >= 0) state.accepted.add(idx);
+          }
+
+          if (event.toConsumer) {
+            state.consumerValues.push(event.value);
+            state.currentIndex = null;
+          }
+        }
+
+        if (event.type === 'predicate') {
+          setActive('filter', event.ok ? 'return' : 'pull');
+          els.callouts.filter.innerHTML = event.ok
+            ? `<strong>${event.value} &gt; 5</strong> → true`
+            : `<strong>${event.value} &gt; 5</strong> → false, тянем ещё`;
+          appendLog(event.message, event.ok ? 'accept' : 'reject');
+          state.currentIndex = event.index;
+          if (!event.ok) state.rejected.add(event.index);
+          if (event.ok) state.accepted.add(event.index);
+        }
+
+        if (event.type === 'done') {
+          clearLayers();
+          state.currentIndex = null;
+          appendLog(event.message, 'accept');
+          els.btnStep.disabled = true;
+          els.btnPlay.disabled = true;
+          stopPlay();
+        }
+
+        els.status.innerHTML = event.status;
+        renderSource();
+        renderSlots();
+      }
+
+      function stepOnce() {
+        if (stepIndex >= steps.length) return false;
+        applyEvent(steps[stepIndex]);
+        stepIndex += 1;
+        return stepIndex < steps.length;
+      }
+
+      function stopPlay() {
+        playing = false;
+        els.btnPlay.textContent = 'Авто';
+        if (playTimer) {
+          clearTimeout(playTimer);
+          playTimer = null;
+        }
+      }
+
+      function playLoop() {
+        if (!playing) return;
+        const hasMore = stepOnce();
+        if (hasMore) {
+          playTimer = setTimeout(playLoop, 850);
+        } else {
+          stopPlay();
+        }
+      }
+
+      els.btnStep.addEventListener('click', () => {
+        stopPlay();
+        stepOnce();
+      });
+
+      els.btnPlay.addEventListener('click', () => {
+        if (playing) {
+          stopPlay();
+          return;
+        }
+        playing = true;
+        els.btnPlay.textContent = 'Пауза';
+        playLoop();
+      });
+
+      els.btnReset.addEventListener('click', resetState);
+
+      resetState();
+    </script>
+  </body>
+</html>
