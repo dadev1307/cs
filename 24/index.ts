@@ -11,13 +11,13 @@ const random = (min: number, max: number) => {
 
 const take = (iterable: Iterable<unknown>, count: number = 1) => {
   const iterator = iterable[Symbol.iterator]();
-  let currenPosition = count;
+  let remainingCount = count;
 
   return Iterator.from({
     next() {
-      while (currenPosition) {
+      while (remainingCount) {
         const { done, value } = iterator.next();
-        currenPosition--;
+        remainingCount--;
 
         if (done) {
           return { done, value: undefined };
@@ -35,7 +35,7 @@ const randomInt = random(0, 100);
 
 console.log([...take(randomInt, 5)]);
 
-const filter = <T>(iterable: Iterable<T>, predicate: (item: T) => boolean) => {
+const filter = <T>(iterable: Iterable<T>, predicate: (value: T) => boolean) => {
   const iterator = iterable[Symbol.iterator]();
   let isDone: boolean | undefined;
 
@@ -49,9 +49,9 @@ const filter = <T>(iterable: Iterable<T>, predicate: (item: T) => boolean) => {
           return { done, value: undefined };
         }
 
-        const isPassed = predicate(value);
+        const matchesPredicate = predicate(value);
 
-        if (isPassed) {
+        if (matchesPredicate) {
           return { done, value };
         }
       }
@@ -63,14 +63,14 @@ const filter = <T>(iterable: Iterable<T>, predicate: (item: T) => boolean) => {
 
 console.log([
   ...take(
-    filter(randomInt, (el) => el > 90),
+    filter(randomInt, (value) => value > 90),
     5
   ),
 ]);
 
 const enumerate = <T>(iterable: Iterable<T>) => {
   const iterator = iterable[Symbol.iterator]();
-  let position = 0;
+  let index = 0;
   let isDone: boolean | undefined = false;
 
   return Iterator.from({
@@ -83,7 +83,7 @@ const enumerate = <T>(iterable: Iterable<T>) => {
           return { done, value };
         }
 
-        return { done, value: [position++, value] };
+        return { done, value: [index++, value] };
       }
 
       return { done: true, value: undefined };
@@ -95,13 +95,13 @@ console.log([...take(enumerate(randomInt), 3)]); // [[0, ...], [1, ...], [2, ...
 
 const seq = (...iterables: Iterable<unknown>[]) => {
   const iterators = iterables.map((iterable) => iterable[Symbol.iterator]());
-  let positionIterator = 0;
+  let currentIteratorIndex = 0;
   let isDone: boolean | undefined;
 
   return Iterator.from({
     next() {
       while (!isDone) {
-        let currentIterator = iterators[positionIterator];
+        let currentIterator = iterators[currentIteratorIndex];
 
         if (!currentIterator) {
           isDone = true;
@@ -111,7 +111,7 @@ const seq = (...iterables: Iterable<unknown>[]) => {
         const { done, value } = currentIterator.next();
 
         if (done) {
-          positionIterator++;
+          currentIteratorIndex++;
           continue;
         }
 
@@ -127,11 +127,11 @@ console.log([...seq([1, 2], new Set([3, 4]), 'bla')]); // [1, 2, 3, 4, 'b', 'l',
 
 const mapSeq = <T>(
   iterable: Iterable<T>,
-  fnIterable: Iterable<(el: any) => any>
+  mappers: Iterable<(value: any) => any>
 ) => {
-  const makeFnIterable = () => fnIterable[Symbol.iterator]();
+  const createMapperIterator = () => mappers[Symbol.iterator]();
   const iterator = iterable[Symbol.iterator]();
-  let fnIterator = makeFnIterable();
+  let mapperIterator = createMapperIterator();
 
   let isDone: undefined | boolean;
 
@@ -145,20 +145,21 @@ const mapSeq = <T>(
           return { done, value: undefined };
         }
 
-        let result = value;
+        let mappedValue = value;
 
         while (true) {
-          const { value: cb, done: doneFn } = fnIterator.next();
+          const { value: mapper, done: isMappersExhausted } =
+            mapperIterator.next();
 
-          if (doneFn) {
-            fnIterator = makeFnIterable();
+          if (isMappersExhausted) {
+            mapperIterator = createMapperIterator();
             break;
           }
 
-          result = cb(result);
+          mappedValue = mapper(mappedValue);
         }
 
-        return { done, value: result };
+        return { done, value: mappedValue };
       }
 
       return { done: true, value: undefined };
@@ -166,4 +167,6 @@ const mapSeq = <T>(
   });
 };
 
-console.log([...mapSeq([1, 2, 3], [(el) => el * 2, (el) => el - 1])]); // [1, 3, 5]
+console.log([
+  ...mapSeq([1, 2, 3], [(value) => value * 2, (value) => value - 1]),
+]); // [1, 3, 5]
