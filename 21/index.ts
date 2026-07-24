@@ -13,7 +13,7 @@ console.log(
 );
 
 function calc(str: string) {
-  const regexp = /(\d|\()[ \t]*[\d\s+\-*/()**]+\d[ \t]*\)?/g;
+  const regexp = /[\d(-][^А-Яа-яA-Za-z]+[)\d]/g;
 
   return str.replace(regexp, (match, key) => {
     return new Function(`return ${match}`)();
