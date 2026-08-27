@@ -12,6 +12,9 @@ function once(callback: Function) {
 export class Semaphore<T> {
   private waitingResolvers: Array<any> = [];
   private activeCount = 0;
+  private isError = false;
+  private error: unknown;
+
   constructor(
     private resource: T,
     private maxConcurrent: number
@@ -19,10 +22,21 @@ export class Semaphore<T> {
 
   createFree() {
     return once(() => {
-      const nextResolver = this.waitingResolvers.shift();
+      const [nextResolver, nextRejecter] = this.waitingResolvers.shift();
+
+      if (!nextResolver && this.isError) {
+        throw 'Ошибка';
+      }
 
       if (!nextResolver) {
         this.activeCount = Math.min(this.activeCount + 1, this.maxConcurrent);
+        return;
+      }
+
+      console.log(this.isError, this.resource, nextRejecter.toString());
+
+      if (this.isError) {
+        nextRejecter({ value: this.error, free: this.createFree() });
         return;
       }
 
@@ -31,7 +45,7 @@ export class Semaphore<T> {
   }
 
   read() {
-    const { promise, resolve } = Promise.withResolvers<{
+    const { promise, resolve, reject } = Promise.withResolvers<{
       value: T;
       free: () => void;
     }>();
@@ -44,7 +58,7 @@ export class Semaphore<T> {
         free: this.createFree(),
       });
     } else {
-      this.waitingResolvers.push(resolve);
+      this.waitingResolvers.push([resolve, reject]);
     }
 
     return promise;
@@ -55,12 +69,22 @@ export class Semaphore<T> {
       Promise.resolve()
         .then(() => criticalSection(value))
         .catch((err: any) => {
-          console.log('Можем поглащать ошибки', `"${err}"`);
+          this.isError = true;
+          this.error = err;
         })
         .finally(() => {
           free();
         })
     );
+  }
+
+  catch(cb: (error: unknown, lastState: T) => void) {
+    const { promise, resolve, reject } = Promise.withResolvers<{
+      value: T;
+      free: () => void;
+    }>();
+
+    this.waitingResolvers.push([() => {}]);
   }
 }
 

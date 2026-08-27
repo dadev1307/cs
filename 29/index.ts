@@ -18,11 +18,7 @@ async function increment(name: any) {
   const { value, free } = await cell.read(); // Ожидаем получение доступа
   value.count++;
   console.log(name, value.count);
-  setTimeout(() => {
-    free();
-    free();
-    free();
-  }, Math.random() * 3000);
+  free();
 }
 
 increment('A'); // A 1
@@ -37,6 +33,12 @@ increment('C'); // C 21
 
 cell.withLock((val) => {
   throw 'Ошибочка вышла';
-}); // Должен всё равно освободить доступ и к след шагу
+});
 
-increment('D'); // D 22
+cell.catch((error, value) => {
+  console.log('Catch', error, value);
+});
+
+increment('D');
+
+cell.catch(console.log);
