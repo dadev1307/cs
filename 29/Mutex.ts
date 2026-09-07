@@ -33,8 +33,6 @@ export class Semaphore<T> {
         return;
       }
 
-      console.log(this.isError, this.resource, nextRejecter.toString());
-
       if (this.isError) {
         nextRejecter({ value: this.error, free: this.createFree() });
         return;
