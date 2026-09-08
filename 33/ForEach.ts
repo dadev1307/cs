@@ -23,22 +23,25 @@ const queuesByPriority: { [K in Priority]: Task[] } = {
 
 const priorityOrder = [Priorities.critical, Priorities.high, Priorities.low];
 
-function processNextItem<T>(task: Task<T>) {
-  const iteratorResult = task.iterator.next();
-
-  if (iteratorResult.done) {
-    return true;
-  }
-
-  task.callback(iteratorResult.value, task.index, task.array);
-  task.index = task.index + 1;
-
-  return false;
-}
-
 let isSchedulerRunning = false;
 let activePriority: Priority = Priorities.critical;
 let activeTaskIndex = 0;
+
+function removeCurrentTask() {
+  queuesByPriority[activePriority].splice(activeTaskIndex, 1);
+  activeTaskIndex--;
+  advanceActiveTaskIndex();
+}
+
+function resolveTask(task: Task<unknown>) {
+  task.resolve();
+  removeCurrentTask();
+}
+
+function rejectTask(task: Task<unknown>, reason: unknown) {
+  task.reject(reason);
+  removeCurrentTask();
+}
 
 function selectNextTask() {
   for (const priority of priorityOrder) {
@@ -55,20 +58,17 @@ function selectNextTask() {
   }
 }
 
-function removeCurrentTask() {
-  queuesByPriority[activePriority].splice(activeTaskIndex, 1);
-  activeTaskIndex--;
-  advanceActiveTaskIndex();
-}
+function processNextItem<T>(task: Task<T>) {
+  const iteratorResult = task.iterator.next();
 
-function resolveTask(task: Task<unknown>) {
-  task.resolve();
-  removeCurrentTask();
-}
+  if (iteratorResult.done) {
+    return true;
+  }
 
-function rejectTask(task: Task<unknown>, reason: unknown) {
-  task.reject(reason);
-  removeCurrentTask();
+  task.callback(iteratorResult.value, task.index, task.array);
+  task.index = task.index + 1;
+
+  return false;
 }
 
 function advanceActiveTaskIndex() {
