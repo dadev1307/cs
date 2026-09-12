@@ -1,74 +1,107 @@
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function timeout(promise: any, ms: number) {
-  return sleep(ms).then(() => Promise.resolve(promise));
+function timeout(promise: any, milliseconds: number) {
+  return Promise.race([
+    promise,
+    sleep(milliseconds).then(() => Promise.reject('timeout')),
+  ]);
 }
 
-function promisify(originalFn: (...args: any[]) => any) {
+function promisify(callbackFn: (...args: any[]) => void) {
   return function (this: any, ...args: any[]) {
-    const callback = args.at(-1);
-
-    if (typeof callback !== 'function') {
-      throw new Error('Последний аргумент должен быть функцией');
-    }
-
     return new Promise((resolve, reject) => {
-      originalFn.call(this, ...args, (err: null | any, resolvedValue: any) => {
+      callbackFn.call(this, ...args, (err: null | any, callbackResult: any) => {
         if (err) {
           reject(err);
         } else {
-          resolve(resolvedValue);
+          resolve(callbackResult);
         }
       });
     });
   };
 }
 
-function allLimit(tasks: Iterable<any>, concurrencyLimit: number) {
+function allLimit(tasks: Iterable<() => any>, concurrencyLimit: number) {
   const iterator = tasks[Symbol.iterator]();
-  let startedCount = 0;
-  let pendingCount = 0;
-  let promises: any[] = [];
-  let isDone = false;
-
   const { resolve, reject, promise } = Promise.withResolvers();
+  const taskResults: any[] = [];
+  let isFinished = false;
+  let activeTaskCount = 0;
+  let lastResultIndex = -1;
 
-  const runNext = () => {
-    startedCount++;
-
-    if (isDone) {
+  const scheduleNextTasks = () => {
+    if (isFinished && activeTaskCount === 0) {
+      resolve(taskResults);
       return;
     }
 
-    const { value: task, done } = iterator.next();
-
-    if (done) {
-      isDone = true;
+    if (isFinished) {
       return;
     }
 
-    pendingCount++;
-    const taskPromise = Promise.resolve(task);
-    promises.push(taskPromise);
+    while (activeTaskCount < concurrencyLimit) {
+      const { value: task, done } = iterator.next();
+      const resultIndex = ++lastResultIndex;
 
-    taskPromise
-      .then(() => {
-        pendingCount--;
-        if (pendingCount === 0 && isDone) {
-          resolve(promises);
-          return;
-        }
+      if (done) {
+        isFinished = true;
+        return;
+      }
 
-        runNext();
-      })
-      .catch(reject);
+      activeTaskCount++;
+
+      Promise.try(task)
+        .then((taskResult) => {
+          activeTaskCount--;
+          taskResults[resultIndex] = taskResult;
+
+          scheduleNextTasks();
+        })
+        .catch((error) => {
+          isFinished = true;
+          reject(error);
+        });
+    }
   };
 
-  while (pendingCount < concurrencyLimit) {
-    runNext();
-  }
+  scheduleNextTasks();
 
   return promise;
 }
+
+async function testAllLimit() {
+  let activeTaskCount = 0;
+  let peakActiveCount = 0;
+
+  const createDelayedTask = (id: number, milliseconds: number) => () => {
+    activeTaskCount++;
+    peakActiveCount = Math.max(peakActiveCount, activeTaskCount);
+    console.log(`start ${id}, running=${activeTaskCount}`);
+
+    return sleep(milliseconds).then(() => {
+      activeTaskCount--;
+      console.log(`done ${id}`);
+
+      return id;
+    });
+  };
+
+  const taskResults = await allLimit(
+    [
+      createDelayedTask(1, 5300),
+      createDelayedTask(2, 8000),
+      createDelayedTask(3, 1200),
+      createDelayedTask(4, 1500),
+      createDelayedTask(5, 50),
+      createDelayedTask(6, 50),
+    ],
+    2
+  );
+
+  console.log('results:', taskResults);
+  console.log('max concurrent:', peakActiveCount);
+}
+
+testAllLimit().catch(console.error);
